@@ -55,7 +55,7 @@ def coin(message):
 def echo(message):
     send_message(message.chat.id, message.text)
 
-@bot.message_handler(func=lambda message: "https://" in message.text)
+@bot.message_handler(func=lambda message: "http://" in message.text or "https://" in message.text)
 def link_handler(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
@@ -64,11 +64,14 @@ def link_handler(message):
     user_status = bot.get_chat_member(chat_id, user_id).status
 
     if user_status not in ['administrator', 'creator']:
-        bot.ban_chat_member(chat_id, user_id)  # Бан пользователя
-        username = message.from_user.username or "неизвестный пользователь"  # Защита от отсутствия username
-        send_message(message.chat.id, f"Пользователь @{username} нарушил правила группы и был забанен.")
+        try:
+            bot.ban_chat_member(chat_id, user_id)  # Бан пользователя
+            username = message.from_user.username or "неизвестный пользователь"  # Защита от отсутствия username
+            bot.send_message(chat_id, f"Пользователь @{username} нарушил правила группы и был забанен.")
+        except Exception as e:
+            print(f"Ошибка при бане пользователя: {e}")
     else:
-        send_message(message.chat.id, "Ссылки отправил администратор. Бан не применён.")
+        bot.send_message(chat_id, "Ссылки отправил администратор. Бан не применён.")
 
 # Запуск бота
 bot.infinity_polling(none_stop=True)
