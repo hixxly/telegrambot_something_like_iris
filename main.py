@@ -1,36 +1,18 @@
 import requests
 import telebot
+from telebot import types
 from random import choice
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 
-# Настройка прокси
-proxy = {
-    'http': 'socks5://67.201.39.14:4145',
-    'https': 'socks5://67.201.39.14:4145'
-}
+# Замените 'YOUR_BOT_TOKEN' на токен вашего бота
+TOKEN = '7475882217:AAGkI1ghSsDiZjfAqsj1Pcodd0tVRZD-OjY'  # Замените на токен вашего бота
+bot = telebot.TeleBot(TOKEN)
 
-# Проверка работоспособности прокси
-try:
-    response = requests.get('http://httpbin.org/ip', proxies=proxy, timeout=5)
-    print("Прокси работает:", response.json())
-except requests.exceptions.RequestException as e:
-    print(f"Прокси не работает: {e}")
-    exit(1)  # Завершить выполнение программы, если прокси не работает
-
-# Ваш токен бота
-bot_token = '7475882217:AAGkI1ghSsDiZjfAqsj1Pcodd0tVRZD-OjY'  # Замените на токен вашего бота
-bot = telebot.TeleBot(bot_token)
-
-# Настройка сессии requests с прокси
+# Создание сессии для отправки сообщений
 session = requests.Session()
-session.proxies = proxy
-session.mount('http://', HTTPAdapter(max_retries=Retry(total=5, backoff_factor=1)))
-session.mount('https://', HTTPAdapter(max_retries=Retry(total=5, backoff_factor=1)))
 
 # Переопределение метода отправки сообщений в telebot
 def send_message(chat_id, text):
-    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
     data = {'chat_id': chat_id, 'text': text}
     try:
         response = session.post(url, data=data)
@@ -38,9 +20,27 @@ def send_message(chat_id, text):
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при отправке сообщения: {e}")
 
+# Хэндлер для команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    send_message(message.chat.id, "Привет! Я EchoBot. Я здесь, чтобы повторять ваши добрые слова. Просто скажите что-нибудь хорошее, и я скажу то же самое!")
+    send_message(message.chat.id, "Привет! Я бот, который может банить пользователей и повторять ваши добрые слова. Просто скажите что-нибудь хорошее!")
+
+# Хэндлер для команды /ban
+@bot.message_handler(commands=['ban'])
+def ban_user(message):
+    if message.reply_to_message:  # Проверяем, что команда отправлена в ответ на сообщение
+        chat_id = message.chat.id
+        user_id = message.reply_to_message.from_user.id
+        user_status = bot.get_chat_member(chat_id, user_id).status  # Получаем статус пользователя
+
+        if user_status in ['administrator', 'creator']:
+            send_message(message.chat.id, "Невозможно забанить администратора.")
+        else:
+            bot.ban_chat_member(chat_id, user_id)  # Баним пользователя
+            username = message.reply_to_message.from_user.username or "неизвестный пользователь"
+            send_message(message.chat.id, f"Пользователь @{username} забанен.")
+    else:
+        send_message(message.chat.id, "Пожалуйста, используйте команду в ответ на сообщение пользователя.")
 
 @bot.message_handler(commands=['info'])
 def info(message):
